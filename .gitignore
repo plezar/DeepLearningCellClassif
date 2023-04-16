@@ -1,3 +1,7 @@
 data/
 *.txt
 *.h5
+.DS_Store
+.ipynb_checkpoints/
+__pycache__/
+testing_imgs/.DS_Store
