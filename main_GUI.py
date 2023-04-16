@@ -11,6 +11,9 @@ import matplotlib.pyplot as plt
 from tifffile import imwrite
 import importlib.util
 import tensorflow as tf
+import os
+
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 
 class mainWindow:
     def __init__(self, win):
