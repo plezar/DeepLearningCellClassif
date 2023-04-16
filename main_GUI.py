@@ -187,6 +187,7 @@ class training_window:
     def open_segmt(self):
         self.update_param()
         data_x, data_y = segment.run_pipeline(self.settings['path'], self.settings['type'], self.settings['input'], self.settings['truth'], self.settings['segmt'], self.settings['useGPU'], self.settings['diam'], self.settings['preproc'])
+        #input_dim = data_x[0].shape
         cellCount = data_y.shape[0]
         tl = Toplevel()
         pg_window = progresswin(tl, cellCount, data_x, data_y, self.settings)
@@ -241,8 +242,8 @@ class progresswin:
         if self.thres != -1:
             self.data_y = self.binarize_label(self.data_y, self.thres)
         print(self.data_y)
-        x = generate_model.init_model(self.settings['diam']*2, self.thres)
-        generate_model.fit_model(x, self.data_x, self.data_y, self.settings['diam']*2, self.settings['modelName'])
+        x = generate_model.init_model(self.data_x[0].shape[0], self.thres)
+        generate_model.fit_model(x, self.data_x, self.data_y, self.data_x[0].shape[0], self.settings['modelName'])
         file = open(self.settings['modelName'] + '_metadata.txt', 'w')
         file.write(str(self.settings['diam']) + '\n')
         file.write(str(self.settings['preproc']) + '\n')

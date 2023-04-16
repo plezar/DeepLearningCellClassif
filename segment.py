@@ -12,7 +12,12 @@ import os
 import matplotlib.pyplot as plt
 import pathlib
 from skimage import io
+from skimage.transform import resize
 import torch
+import cv2
+
+# debugging
+import imageio
 
 import sys
 np.set_printoptions(threshold=sys.maxsize)
@@ -64,7 +69,7 @@ def preprocessing(imgs, type_of_preprocess):
 # Pixels in each segment that is not part of that cell is set to 0
 def generate_segments(bf_imgs, fl_imgs, sg_imgs = [], use_GPU = False, diameter = 20):
     masks = []
-    model = models.Cellpose(gpu=use_GPU, model_type = 'cyto2', device=torch.device('cuda'))
+    model = models.Cellpose(gpu=use_GPU, model_type = 'cyto2', device=torch.device('cpu'))
     segment_bf = []
     segment_fl = []
 
@@ -76,23 +81,78 @@ def generate_segments(bf_imgs, fl_imgs, sg_imgs = [], use_GPU = False, diameter 
         else:
             segment_img = bf_img
         mask, flows, styles, diams = model.eval(segment_img, diameter = None, flow_threshold=0.2, channels=[0,0])
-        # masks.append(mask)
+        masks.append(mask)
         maxnum_cell = mask.max()
+
+        border_ind = [0, bf_img.shape[0]]
         bf_img = add_padding(normalize_bf(bf_img), int(diameter*1.5))
         fl_img = add_padding(fl_img, int(diameter*1.5))
-        mask = add_padding(mask, int(diameter*1.5))
+
+        mask_padded = add_padding(mask, int(diameter*1.5))
 
         for j in range(1, maxnum_cell):
-            x,y = np.where(mask==j)
-            bin_mask = np.where(mask == j, 1, 0)
+            x,y = np.where(mask_padded==j)
+            
+            # Only takes images whose segmentation mask does not overlap with the iamge border
+            if not np.any(np.isin(np.append(x, y), border_ind)):
 
-            min_indx = int(x.min()-diameter/2)
-            max_indx = int(x.min()+diameter*1.5)
-            min_indy = int(y.min()-diameter/2)
-            max_indy = int(y.min()+diameter*1.5)
-            segment_bf.append(bf_img[min_indx:max_indx, min_indy:max_indy])
-            segment_fl.append(np.multiply(fl_img[min_indx:max_indx, min_indy:max_indy], bin_mask[min_indx:max_indx, min_indy:max_indy]))
+                bin_mask = np.where(mask_padded == j, 1, 0)
+                x, y = np.where(bin_mask == 1)
+
+                min_indx = int(x.min()-5)
+                max_indx = int(x.max()+5)
+                min_indy = int(y.min()-5)
+                max_indy = int(y.max()+5)
+
+                bf_img_sub = bf_img[min_indx:max_indx, min_indy:max_indy]
+                fl_img_sub = fl_img[min_indx:max_indx, min_indy:max_indy]
+                bin_mask_sub = bin_mask[min_indx:max_indx, min_indy:max_indy]
+
+                segment_bf.append(bf_img_sub)
+                segment_fl.append(np.multiply(fl_img_sub, bin_mask_sub))
+
+    img_size = max([max(list(i.shape)) for i in segment_bf])
+    img_size = (img_size, img_size)
+
+    segment_bf = pad_images_to_same_size(segment_bf)
+    segment_fl = pad_images_to_same_size(segment_fl)
+
+    #for i in range(len(segment_bf)):
+    #    imageio.imwrite('data/segmented/' + str(i) + '_bf.jpg', segment_bf[i])
+
+    #fig = plt.figure(figsize=(12,5))
+    #plot.show_segmentation(fig, segment_img, mask, flows[0])
+    #plt.savefig('data/segmented/cellpose_segment.png')
+
     return segment_bf, segment_fl, len(segment_bf)
+
+
+def pad_images_to_same_size(images):
+    """
+    :param images: sequence of images
+    :return: list of images padded so that all images have same width and height (max width and height are used)
+    """
+    dim_max = 0
+
+    for img in images:
+        h, w = img.shape[:2]
+        dim_max = max(max(dim_max, w), max(dim_max, h))
+
+    images_padded = []
+    for img in images:
+        h, w = img.shape[:2]
+        diff_vert = dim_max - h
+        pad_top = diff_vert//2
+        pad_bottom = diff_vert - pad_top
+        diff_hori = dim_max - w
+        pad_left = diff_hori//2
+        pad_right = diff_hori - pad_left
+        img_padded = cv2.copyMakeBorder(img, pad_top, pad_bottom, pad_left, pad_right, cv2.BORDER_CONSTANT, value=0)
+        assert img_padded.shape[:2] == (dim_max, dim_max)
+        images_padded.append(img_padded)
+
+    return images_padded
+
 
 # A function to add padding to edges to make sure all output is of same dimension
 def add_padding(im, d):
@@ -124,4 +184,9 @@ def run_pipeline(img_dir, file_type, input_ch, truth_ch, segmt_ch, use_GPU, diam
     print('Segmented the images. Identified '+ str(numcell) + ' cells across all the supplied images. Generating labels...')
     label = generate_labels(segment_fl)
     print('Generated labels. Training model now...')
+
+    #for i in range(len(segment_bf)):
+        #imageio.imwrite('data/segmented/' + str(i) + '_bf.jpg', segment_bf[i])
+        #imageio.imwrite('data/segmented/' + str(i) + '_mask.jpg', masks[i])
+
     return segment_bf, label

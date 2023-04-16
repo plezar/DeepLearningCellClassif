@@ -39,7 +39,7 @@ def dimension_compat(im):
     return im
 
 def generate_segments(bf_img, sg_img = 0, use_GPU = False, diameter = 20):
-    model = models.Cellpose(gpu=use_GPU, model_type = 'cyto2', device=torch.device('cuda'))
+    model = models.Cellpose(gpu=use_GPU, model_type = 'cyto2', device=torch.device('mps'))
     segment_bf = []
 
     if sg_img != []:
