@@ -69,7 +69,7 @@ def preprocessing(imgs, type_of_preprocess):
 # Pixels in each segment that is not part of that cell is set to 0
 def generate_segments(bf_imgs, fl_imgs, sg_imgs = [], use_GPU = False, diameter = 20):
     masks = []
-    model = models.Cellpose(gpu=use_GPU, model_type = 'cyto2', device=torch.device('cpu'))
+    model = models.Cellpose(gpu=use_GPU, model_type = 'cyto2', device=torch.device('cuda'))
     segment_bf = []
     segment_fl = []
 
