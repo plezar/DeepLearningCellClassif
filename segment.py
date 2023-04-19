@@ -59,8 +59,9 @@ def dimension_compat(im):
         im = np.transpose(im, axes = (1,2,0))
     return im
 
-def preprocessing(imgs, type_of_preprocess):
-    #Placeholder
+def preprocessing(imgs):
+    for i in range(len(imgs)):
+        imgs[i] = cv2.medianBlur(imgs[i], 5)
     return imgs
 
 # Generates segments based on Cellpose segmentation results
@@ -117,8 +118,8 @@ def generate_segments(bf_imgs, fl_imgs, sg_imgs = [], use_GPU = False, diameter 
     segment_bf = pad_images_to_same_size(segment_bf)
     segment_fl = pad_images_to_same_size(segment_fl)
 
-    for i in range(len(segment_bf)):
-        imageio.imwrite('data/segmented/' + str(i) + '_bf.jpg', segment_bf[i])
+    #for i in range(len(segment_bf)):
+    #    imageio.imwrite('data/segmented/' + str(i) + '_bf.jpg', segment_bf[i])
 
     #fig = plt.figure(figsize=(12,5))
     #plot.show_segmentation(fig, segment_img, mask, flows[0])
@@ -178,16 +179,17 @@ def run_pipeline(img_dir, file_type, input_ch, truth_ch, segmt_ch, use_GPU, diam
     if img_dir == 'current':
         img_dir = pathlib.Path(__file__).parent.resolve()
     bf_imgs, fl_imgs, sg_imgs = generate_imgs(img_dir, file_type = file_type, input_ch = input_ch, truth_ch = truth_ch, segmt_ch = segmt_ch)
-    bf_imgs = preprocessing(bf_imgs, preproc)
+    bf_imgs = preprocessing_fl(bf_imgs)
     print('Imported the images. Segmenting them...')
     segment_bf, segment_fl, numcell = generate_segments(bf_imgs, fl_imgs, use_GPU = use_GPU, diameter = diameter)
     print('Segmented the images. Identified '+ str(numcell) + ' cells across all the supplied images. Generating labels...')
     label = generate_labels(segment_fl)
     print('Generated labels. Training model now...')
 
-    #for i in range(len(segment_bf)):
-        #imageio.imwrite('data/segmented/' + str(i) + '_bf.jpg', segment_bf[i])
+    for i in range(len(segment_bf)):
+        imageio.imwrite('data/segmented/' + str(i) + '_bf_processed.jpg', segment_bf[i])
+        imageio.imwrite('data/segmented/' + str(i) + '_fl.jpg', segment_fl[i])
         #imageio.imwrite('data/segmented/' + str(i) + '_mask.jpg', masks[i])
-    print(segment_bf[0])
-
+    #print(segment_bf[0])
+    np.savetxt('data/segmented/labels.txt',label, delimiter=',',newline='\n')
     return segment_bf, label
