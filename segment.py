@@ -69,7 +69,7 @@ def preprocessing(imgs, type_of_preprocess):
 # Pixels in each segment that is not part of that cell is set to 0
 def generate_segments(bf_imgs, fl_imgs, sg_imgs = [], use_GPU = False, diameter = 20):
     masks = []
-    model = models.Cellpose(gpu=use_GPU, model_type = 'cyto2', device=torch.device('cuda'))
+    model = models.Cellpose(gpu=use_GPU, model_type = 'cyto2', device=torch.device('cpu'))
     segment_bf = []
     segment_fl = []
 
@@ -117,8 +117,8 @@ def generate_segments(bf_imgs, fl_imgs, sg_imgs = [], use_GPU = False, diameter 
     segment_bf = pad_images_to_same_size(segment_bf)
     segment_fl = pad_images_to_same_size(segment_fl)
 
-    #for i in range(len(segment_bf)):
-    #    imageio.imwrite('data/segmented/' + str(i) + '_bf.jpg', segment_bf[i])
+    for i in range(len(segment_bf)):
+        imageio.imwrite('data/segmented/' + str(i) + '_bf.jpg', segment_bf[i])
 
     #fig = plt.figure(figsize=(12,5))
     #plot.show_segmentation(fig, segment_img, mask, flows[0])
@@ -188,5 +188,6 @@ def run_pipeline(img_dir, file_type, input_ch, truth_ch, segmt_ch, use_GPU, diam
     #for i in range(len(segment_bf)):
         #imageio.imwrite('data/segmented/' + str(i) + '_bf.jpg', segment_bf[i])
         #imageio.imwrite('data/segmented/' + str(i) + '_mask.jpg', masks[i])
+    print(segment_bf[0])
 
     return segment_bf, label
