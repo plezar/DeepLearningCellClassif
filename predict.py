@@ -59,6 +59,8 @@ def generate_segments(bf_img, sg_img = 0, use_GPU = False, diameter = 20):
         max_indy = int(y.min()+diameter*1.5)
         segment_bf.append(bf_img[min_indx:max_indx, min_indy:max_indy])
     return segment_bf, mask
+  
+  
 def add_padding(im, d):
     xdim, ydim = im.shape
     leftpad = np.zeros([xdim, d])
@@ -88,5 +90,5 @@ def run_pipeline(path_str, file_type, model_name, input_ch, segmt_ch, diam, prep
         segment_bf = np.stack(segment_bf,axis=0)
         segment_bf = segment_bf.reshape(-1, diam*2, diam*2, 1)
         labels.append(run_model(segment_bf, model_name))
-
+    print(labels)    
     return labels, masks

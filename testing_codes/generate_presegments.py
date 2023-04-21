@@ -42,7 +42,6 @@ def generate_imgs(path_str, file_type = '.tif', input_ch = 0, truth_ch = 1, segm
         fl_imgs.append(im[:,:,truth_ch])
         if segmt_ch != -1:
             sg_imgs.append(im[:,:,segmt_ch])
-
     return bf_imgs, fl_imgs, sg_imgs
 
 def normalize_bf(img):
@@ -51,6 +50,12 @@ def normalize_bf(img):
     std = np.std(img)
     return img/std
 
+def convert_to_8bit(img):
+  # img is a numpy array/cv2 image
+  img = img - img.min() # Now between 0 and 8674
+  img = img / img.max() * 255
+  new_img = np.uint8(img)
+  return(new_img)
 
 # Checks if dimensions are comptatible, and if not, transposes
 def dimension_compat(im):
@@ -60,10 +65,20 @@ def dimension_compat(im):
         im = np.transpose(im, axes = (1,2,0))
     return im
 
-def preprocessing(imgs):
+
+def preprocess_whole_imgs(imgs):
     for i in range(len(imgs)):
         imgs[i] = cv2.medianBlur(imgs[i], 5)
     return imgs
+
+def preprocessing_bf_segments(imgs):
+    for i in range(len(imgs)):
+        imgs[i] = convert_to_8bit(imgs[i])
+        imgs[i] = cv2.medianBlur(imgs[i], 5)
+        ret, img = cv2.threshold(imgs[i], 150, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+        #imgs[i] = img
+    return imgs
+
 
 # Generates segments based on Cellpose segmentation results
 # Takes either the brightfield channel or the segmentation channel and segments.
@@ -71,7 +86,7 @@ def preprocessing(imgs):
 # Pixels in each segment that is not part of that cell is set to 0
 def generate_segments(bf_imgs, fl_imgs, sg_imgs = [], use_GPU = False, diameter = 20):
     masks = []
-    model = models.Cellpose(gpu=use_GPU, model_type = 'cyto2', device=torch.device('cpu'))
+    model = models.Cellpose(gpu=use_GPU, model_type = 'cyto2', device=torch.device('cuda'))
     segment_bf = []
     segment_fl = []
 
@@ -87,7 +102,9 @@ def generate_segments(bf_imgs, fl_imgs, sg_imgs = [], use_GPU = False, diameter 
         maxnum_cell = mask.max()
 
         border_ind = [0, bf_img.shape[0]]
+
         bf_img = add_padding(normalize_bf(bf_img), int(diameter*1.5))
+
         fl_img = add_padding(fl_img, int(diameter*1.5))
 
         mask_padded = add_padding(mask, int(diameter*1.5))
@@ -113,8 +130,29 @@ def generate_segments(bf_imgs, fl_imgs, sg_imgs = [], use_GPU = False, diameter 
                 segment_bf.append(bf_img_sub)
                 segment_fl.append(np.multiply(fl_img_sub, bin_mask_sub))
 
-    img_size = max([max(list(i.shape)) for i in segment_bf])
-    img_size = (img_size, img_size)
+    #img_size = max([max(list(i.shape)) for i in segment_bf])
+    #img_size = (img_size, img_size)
+    
+    segment_bf = preprocessing_bf_segments(segment_bf)
+    
+    ydim = [i.shape[0] for i in segment_bf]
+    xdim = [i.shape[1] for i in segment_bf]
+    
+    xdim_pass = [i < np.quantile(xdim, 0.9) for i in xdim]
+    ydim_pass = [i < np.quantile(ydim, 0.9) for i in ydim]
+    
+    xdim_pass = [i for i, x in enumerate(xdim_pass) if x]
+    ydim_pass = [i for i, x in enumerate(ydim_pass) if x]
+    
+    size_pass = list(set(xdim_pass) & set(ydim_pass))
+    
+    segment_bf = [segment_bf[i] for i in size_pass]
+    segment_fl = [segment_fl[i] for i in size_pass]
+    
+    #plt.hist(ydim, bins = 50)
+    #plt.xlabel('Image height')
+    #plt.ylabel('Count')
+    #plt.show()
 
     segment_bf = pad_images_to_same_size(segment_bf)
     segment_fl = pad_images_to_same_size(segment_fl)
@@ -180,21 +218,25 @@ def run_pipeline(img_dir, file_type, input_ch, truth_ch, segmt_ch, use_GPU, diam
     if img_dir == 'current':
         img_dir = pathlib.Path(__file__).parent.resolve()
     bf_imgs, fl_imgs, sg_imgs = generate_imgs(img_dir, file_type = file_type, input_ch = input_ch, truth_ch = truth_ch, segmt_ch = segmt_ch)
-    bf_imgs = preprocessing(bf_imgs)
-    fl_imgs = preprocessing(fl_imgs)
+    
+    bf_imgs = preprocess_whole_imgs(bf_imgs)
+    fl_imgs = preprocess_whole_imgs(fl_imgs)
+    
     print('Imported the images. Segmenting them...')
     segment_bf, segment_fl, numcell = generate_segments(bf_imgs, fl_imgs, use_GPU = use_GPU, diameter = diameter)
     print('Segmented the images. Identified '+ str(numcell) + ' cells across all the supplied images. Generating labels...')
+
     label = generate_labels(segment_fl)
     print('Generated labels. Training model now...')
-
+    
     for i in range(len(segment_bf)):
         im = Image.fromarray(segment_bf[i])
-        im.save('segmented_imgs/' + str(i) + '_bf.tif')
+
+        im.save('segmented_imgs_test/' + str(i) + '_bf.tif')
         # negative values???
         
         # imageio.imwrite(str(i) + '_mask.tif', masks[i])
     np.savetxt('labels.txt',label, delimiter=',',newline='\n')
     return segment_bf, label
 
-run_pipeline('/Users/plezar/Documents/gradschool/deep_learning/DeepLearningCellClassif/data/20230308_ECFib', 'tif', 3,1,0,False,30,'0')
+run_pipeline(r'C:\Users\mzarodn2\Documents\DeepLearningCellClassif\data\test','tif', 3,1,0,True,30,'0')

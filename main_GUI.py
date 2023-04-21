@@ -202,6 +202,7 @@ class training_window:
         plt.hist(data, bins = 100)
         plt.xlabel('Mean Fluorescence Intensity')
         plt.ylabel('Cell Count')
+        plt.xscale('log')
         plt.show()
 
 class progresswin:
