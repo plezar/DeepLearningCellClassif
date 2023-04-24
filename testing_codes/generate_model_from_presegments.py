@@ -10,24 +10,25 @@ import matplotlib.pyplot as plt
 import pathlib
 from skimage import io
 from skimage.transform import resize
+from tensorflow.keras import regularizers
 import torch
 import cv2
 
-num_of_cells = 6336
 threshold = 1000
+path_str = "C:/Users/mzarodn2/Documents/DeepLearningCellClassif/testing_codes/train_segments/"
+images_lst = [file for file in os.listdir(path_str) if file.endswith("tif")]
+
 bf_imgs = []
-for i in range(num_of_cells):
-    filenames = str(i) + '_bf.tif'
-    bf_imgs.append(io.imread('C:/Users/mzarodn2/Documents/DeepLearningCellClassif/testing_codes/segmented_imgs/' + filenames))
+for filenames in images_lst:
+  im = io.imread(os.path.join(path_str,filenames))
+  bf_imgs.append(im)
 input_size = bf_imgs[0].shape[0]
+
+print(bf_imgs[0][10:35, 10:35])
+
 labels = np.loadtxt('labels.txt',delimiter = ',')
+labels = labels[:len(bf_imgs)]
 
-
-plt.hist(labels, bins = 50)
-plt.xlabel('Mean Fluorescence Intensity')
-plt.ylabel('Cell Count')
-plt.xscale('log')
-plt.show()
 
 bin_label = np.where(labels > threshold, 1, 0)
 
@@ -102,7 +103,7 @@ def init_AlexNet(input_size, threshold):
     keras.layers.Dropout(0.5),
     keras.layers.Dense(2, activation=fin_activation)])
     
-    opt = optimizers.Adam(learning_rate=0.000001)
+    opt = optimizers.Adam(learning_rate=0.00001)
     model.compile(optimizer = opt, loss = loss_type, metrics = [metric_type])
 
     return model
@@ -112,14 +113,38 @@ def fit_model(model, data_x, data_y, input_size, modelName):
     x,y = data_org(data_x, data_y, input_size)
     best_callback = [callbacks.ModelCheckpoint(filepath= modelName + '.h5', monitor='val_accuracy', save_best_only = True, mode='max')]
 
-    history = model.fit(x, y, batch_size = 16, epochs = 500, validation_split=0.2, shuffle=True, callbacks = best_callback)
-
+    history = model.fit(x, y, batch_size = 32, epochs = 100, validation_split=0.2, shuffle=True, callbacks = best_callback)
     print('Model has been saved in the supplied directory as ' + modelName + '.h5')
+    return(history)
 
 def data_org(data_x, data_y, size_selection):
     data_x = np.stack(data_x,axis=0)
     x = data_x.reshape(-1, size_selection, size_selection, 1)
     return x,data_y
   
-model = init_AlexNet(input_size, 1000)
-fit_model(model, bf_imgs, bin_label, input_size, 'test')
+def plot_train_curves(history):
+  accuracy = history.history["accuracy"]
+  val_accuracy = history.history["val_accuracy"]
+  loss = history.history["loss"]
+  val_loss = history.history["val_loss"]
+  epochs = range(1, len(accuracy) + 1)
+  
+  plt.plot(epochs, accuracy, "b--", label="Training accuracy")
+  plt.plot(epochs, val_accuracy, "b", label="Validation accuracy")
+  plt.title("Training and Validation Accuracy")
+  plt.legend()
+  plt.figure()
+  
+  plt.plot(epochs, loss, "b--", label = "Training loss")
+  plt.plot(epochs,val_loss, "b", label = "Validation loss")
+  plt.title("Training and Validation Loss")
+  plt.legend()
+  plt.show()
+  
+  
+model = init_model(input_size, 1000)
+history = fit_model(model, bf_imgs, bin_label, input_size, 'AlexNet_median_filter_augment')
+plot_train_curves(history)
+
+
+

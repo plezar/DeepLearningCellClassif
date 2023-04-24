@@ -73,9 +73,9 @@ def preprocess_whole_imgs(imgs):
 
 def preprocessing_bf_segments(imgs):
     for i in range(len(imgs)):
-        imgs[i] = convert_to_8bit(imgs[i])
+        #imgs[i] = convert_to_8bit(imgs[i])
         imgs[i] = cv2.medianBlur(imgs[i], 5)
-        ret, img = cv2.threshold(imgs[i], 150, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+        #ret, img = cv2.threshold(imgs[i], 150, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
         #imgs[i] = img
     return imgs
 
@@ -232,11 +232,11 @@ def run_pipeline(img_dir, file_type, input_ch, truth_ch, segmt_ch, use_GPU, diam
     for i in range(len(segment_bf)):
         im = Image.fromarray(segment_bf[i])
 
-        im.save('segmented_imgs_test/' + str(i) + '_bf.tif')
+        im.save('segmented_imgs/' + str(i) + '_bf.tif')
         # negative values???
         
         # imageio.imwrite(str(i) + '_mask.tif', masks[i])
     np.savetxt('labels.txt',label, delimiter=',',newline='\n')
     return segment_bf, label
 
-run_pipeline(r'C:\Users\mzarodn2\Documents\DeepLearningCellClassif\data\test','tif', 3,1,0,True,30,'0')
+run_pipeline(r'C:\Users\mzarodn2\Documents\DeepLearningCellClassif\data','tif', 3,1,0,True,30,'0')
