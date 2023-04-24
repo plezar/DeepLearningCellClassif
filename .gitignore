@@ -6,3 +6,4 @@ data/
 __pycache__/
 testing_imgs/.DS_Store
 */segmented_imgs*
+*.tif
