@@ -29,6 +29,8 @@ np.set_printoptions(threshold=sys.maxsize)
 # truth_ch = fluorescent channel to be used to generate labels
 # segmt_ch (optional, -1 indicates no segment channel) = separate fluorescent channel for segmentation purpose
 
+
+
 def generate_imgs(path_str, file_type = '.tif', input_ch = 0, truth_ch = 1, segmt_ch = -1):
     images_lst = [file for file in os.listdir(path_str)
                     if file.endswith(file_type)]
@@ -36,6 +38,7 @@ def generate_imgs(path_str, file_type = '.tif', input_ch = 0, truth_ch = 1, segm
     fl_imgs = []
     sg_imgs = []
     for filenames in images_lst:
+        print(filenames)
         im = io.imread(os.path.join(path_str,filenames))
         im = dimension_compat(im)
         bf_imgs.append(im[:,:,input_ch])
@@ -71,13 +74,9 @@ def preprocess_whole_imgs(imgs):
         imgs[i] = cv2.medianBlur(imgs[i], 5)
     return imgs
 
-def preprocessing_bf_segments(imgs):
-    for i in range(len(imgs)):
-        #imgs[i] = convert_to_8bit(imgs[i])
-        imgs[i] = cv2.medianBlur(imgs[i], 5)
-        #ret, img = cv2.threshold(imgs[i], 150, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-        #imgs[i] = img
-    return imgs
+def preprocessing_bf_imgs(img):
+  img = cv2.medianBlur(img, 5)
+  return img
 
 
 # Generates segments based on Cellpose segmentation results
@@ -102,6 +101,8 @@ def generate_segments(bf_imgs, fl_imgs, sg_imgs = [], use_GPU = False, diameter 
         maxnum_cell = mask.max()
 
         border_ind = [0, bf_img.shape[0]]
+        
+        #bf_img = preprocessing_bf_imgs(bf_img)
 
         bf_img = add_padding(normalize_bf(bf_img), int(diameter*1.5))
 
@@ -133,13 +134,13 @@ def generate_segments(bf_imgs, fl_imgs, sg_imgs = [], use_GPU = False, diameter 
     #img_size = max([max(list(i.shape)) for i in segment_bf])
     #img_size = (img_size, img_size)
     
-    segment_bf = preprocessing_bf_segments(segment_bf)
+    #segment_bf = preprocessing_bf_segments(segment_bf)
     
     ydim = [i.shape[0] for i in segment_bf]
     xdim = [i.shape[1] for i in segment_bf]
     
-    xdim_pass = [i < np.quantile(xdim, 0.9) for i in xdim]
-    ydim_pass = [i < np.quantile(ydim, 0.9) for i in ydim]
+    xdim_pass = [i < np.quantile(xdim, 1) for i in xdim]
+    ydim_pass = [i < np.quantile(ydim, 1) for i in ydim]
     
     xdim_pass = [i for i, x in enumerate(xdim_pass) if x]
     ydim_pass = [i for i, x in enumerate(ydim_pass) if x]
@@ -227,16 +228,17 @@ def run_pipeline(img_dir, file_type, input_ch, truth_ch, segmt_ch, use_GPU, diam
     print('Segmented the images. Identified '+ str(numcell) + ' cells across all the supplied images. Generating labels...')
 
     label = generate_labels(segment_fl)
+    label_bin = np.where(label > 1000, 1, 0)
     print('Generated labels. Training model now...')
     
     for i in range(len(segment_bf)):
+      
         im = Image.fromarray(segment_bf[i])
-
-        im.save('segmented_imgs/' + str(i) + '_bf.tif')
+        im.save('segmented_imgs_lbl/' + str(i) + '_' + str(label_bin[i]) + '_bf.tif')
         # negative values???
+        #imageio.imwrite(str(i) + '_mask.tif', masks[i])
         
-        # imageio.imwrite(str(i) + '_mask.tif', masks[i])
-    np.savetxt('labels.txt',label, delimiter=',',newline='\n')
+    #np.savetxt('labels.txt',label, delimiter=',',newline='\n')
     return segment_bf, label
 
-run_pipeline(r'C:\Users\mzarodn2\Documents\DeepLearningCellClassif\data','tif', 3,1,0,True,30,'0')
+run_pipeline(r'C:\Users\mzarodn2\Documents\DeepLearningCellClassif\data\debugging','tif', 3,1,0,True,30,'0')

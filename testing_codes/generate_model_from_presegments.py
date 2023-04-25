@@ -15,7 +15,7 @@ import torch
 import cv2
 
 threshold = 1000
-path_str = "C:/Users/mzarodn2/Documents/DeepLearningCellClassif/testing_codes/train_segments/"
+path_str = "C:/Users/mzarodn2/Documents/DeepLearningCellClassif/testing_codes/segmented_imgs/"
 images_lst = [file for file in os.listdir(path_str) if file.endswith("tif")]
 
 bf_imgs = []
@@ -24,10 +24,10 @@ for filenames in images_lst:
   bf_imgs.append(im)
 input_size = bf_imgs[0].shape[0]
 
-print(bf_imgs[0][10:35, 10:35])
-
 labels = np.loadtxt('labels.txt',delimiter = ',')
 labels = labels[:len(bf_imgs)]
+
+
 
 
 bin_label = np.where(labels > threshold, 1, 0)
@@ -143,7 +143,7 @@ def plot_train_curves(history):
   
   
 model = init_model(input_size, 1000)
-history = fit_model(model, bf_imgs, bin_label, input_size, 'AlexNet_median_filter_augment')
+history = fit_model(model, bf_imgs, bin_label, input_size, 'PaulNet_median_filter')
 plot_train_curves(history)
 
 
