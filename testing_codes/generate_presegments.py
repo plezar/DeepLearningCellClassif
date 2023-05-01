@@ -139,8 +139,8 @@ def generate_segments(bf_imgs, fl_imgs, sg_imgs = [], use_GPU = False, diameter 
     ydim = [i.shape[0] for i in segment_bf]
     xdim = [i.shape[1] for i in segment_bf]
     
-    xdim_pass = [i < np.quantile(xdim, 1) for i in xdim]
-    ydim_pass = [i < np.quantile(ydim, 1) for i in ydim]
+    xdim_pass = [i < np.quantile(xdim, 0.95) for i in xdim]
+    ydim_pass = [i < np.quantile(ydim, 0.95) for i in ydim]
     
     xdim_pass = [i for i, x in enumerate(xdim_pass) if x]
     ydim_pass = [i for i, x in enumerate(ydim_pass) if x]
@@ -234,11 +234,11 @@ def run_pipeline(img_dir, file_type, input_ch, truth_ch, segmt_ch, use_GPU, diam
     for i in range(len(segment_bf)):
       
         im = Image.fromarray(segment_bf[i])
-        im.save('segmented_imgs_lbl/' + str(i) + '_' + str(label_bin[i]) + '_bf.tif')
+        im.save('segmented_imgs/' + str(i) + '_bf.tif')
         # negative values???
         #imageio.imwrite(str(i) + '_mask.tif', masks[i])
         
-    #np.savetxt('labels.txt',label, delimiter=',',newline='\n')
+    np.savetxt('labels.txt',label, delimiter=',',newline='\n')
     return segment_bf, label
 
-run_pipeline(r'C:\Users\mzarodn2\Documents\DeepLearningCellClassif\data\debugging','tif', 3,1,0,True,30,'0')
+run_pipeline(r'C:\Users\mzarodn2\Documents\DeepLearningCellClassif\data','tif', 3,1,0,True,30,'0')
